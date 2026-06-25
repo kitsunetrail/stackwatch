@@ -1,0 +1,25 @@
+# StackWatch 設定（1ファイル完結）。config.yml にコピーして使う。
+# 最低限 notify 先を1つ設定すれば動く。他は省略するとデフォルトが適用される。
+
+schedule:
+  # ローカルタイムで1日1回実行する時刻 (HH:MM)。
+  # 空にすると「起動から24時間ごと」の間隔モードになる。
+  daily_at: "09:00"
+  # 起動直後に1回スキャンする。
+  run_on_start: true
+
+scan:
+  # 通知対象の深刻度。既定は HIGH と CRITICAL のみ。
+  severity: [HIGH, CRITICAL]
+
+notify:
+  # Slack Incoming Webhook（整形済みメッセージを送信）。
+  slack_webhook_url: ""
+  # 汎用 Webhook（構造化 JSON を POST）。受け手側で自由に加工できる。
+  generic_webhook_url: ""
+  # 異常が無くても1通送るか。既定 false（異常時のみ通知）。
+  notify_on_clean: false
+
+docker:
+  # 読み取り専用でマウントされる docker.sock のパス。
+  socket: "/var/run/docker.sock"

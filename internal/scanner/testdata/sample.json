@@ -1,0 +1,74 @@
+{
+  "SchemaVersion": 2,
+  "ArtifactName": "demo:1.0",
+  "ArtifactType": "container_image",
+  "Metadata": {
+    "OS": { "Family": "debian", "Name": "10.8", "EOSL": true }
+  },
+  "Results": [
+    {
+      "Target": "demo:1.0 (debian 10.8)",
+      "Class": "os-pkgs",
+      "Type": "debian",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-OS-FIXED",
+          "PkgName": "libc-bin",
+          "InstalledVersion": "2.28-10",
+          "FixedVersion": "2.28-10+deb10u2",
+          "Status": "fixed",
+          "Severity": "CRITICAL",
+          "PrimaryURL": "https://example.test/CVE-OS-FIXED"
+        },
+        {
+          "VulnerabilityID": "CVE-OS-WONTFIX",
+          "PkgName": "gcc-8-base",
+          "InstalledVersion": "8.3.0-6",
+          "FixedVersion": "",
+          "Status": "will_not_fix",
+          "Severity": "HIGH",
+          "PrimaryURL": "https://example.test/CVE-OS-WONTFIX"
+        },
+        {
+          "VulnerabilityID": "CVE-OS-AFFECTED",
+          "PkgName": "e2fsprogs",
+          "InstalledVersion": "1.44.5-1+deb10u3",
+          "FixedVersion": "",
+          "Status": "affected",
+          "Severity": "HIGH",
+          "PrimaryURL": "https://example.test/CVE-OS-AFFECTED"
+        }
+      ]
+    },
+    {
+      "Target": "Python",
+      "Class": "lang-pkgs",
+      "Type": "python-pkg",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-LANG-MAJOR",
+          "PkgName": "setuptools",
+          "InstalledVersion": "53.0.0",
+          "FixedVersion": "78.1.1",
+          "Status": "fixed",
+          "Severity": "HIGH",
+          "PrimaryURL": "https://example.test/CVE-LANG-MAJOR"
+        },
+        {
+          "VulnerabilityID": "CVE-LANG-MINOR",
+          "PkgName": "pip",
+          "InstalledVersion": "21.0.1",
+          "FixedVersion": "21.1",
+          "Status": "fixed",
+          "Severity": "HIGH",
+          "PrimaryURL": "https://example.test/CVE-LANG-MINOR"
+        }
+      ]
+    },
+    {
+      "Target": "no-vulns-result",
+      "Class": "lang-pkgs",
+      "Type": "gobinary"
+    }
+  ]
+}

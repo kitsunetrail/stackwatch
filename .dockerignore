@@ -1,0 +1,6 @@
+.git
+docs
+*.md
+config.yml
+/stackwatch
+internal/scanner/testdata/real_*.json

@@ -1,0 +1,13 @@
+# Built binary
+/stackwatch
+/out/
+
+# Local config (never commit real webhook URLs)
+config.yml
+
+# Editor / OS
+*.swp
+.DS_Store
+
+# Internal design / planning notes (kept local, not published)
+/design/
