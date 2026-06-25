@@ -61,4 +61,8 @@ The pipeline is split into small packages: `docker` (enumerate) → `scanner` (r
 
 ## License
 
-TBD (planned for open-source release).
+[GNU AGPL-3.0](LICENSE). Copyright (c) 2026 Kitsune Trail.
+
+In short: you're free to use, modify, and self-host it. If you run a modified
+version as a network service, you must make your modified source available to
+its users.
