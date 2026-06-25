@@ -1,0 +1,21 @@
+# StackWatch deployment — one instance per host, scans every running container.
+#
+# Setup:
+#   cp config.example.yml config.yml     # then put your Slack webhook in config.yml
+#   docker compose up -d
+#   docker compose logs -f
+#
+# config.yml holds your webhook URL (a secret) and is gitignored — never commit it.
+services:
+  stackwatch:
+    image: ghcr.io/kitsunetrail/stackwatch:latest
+    container_name: stackwatch
+    restart: unless-stopped
+    environment:
+      # The schedule.daily_at time in config.yml is interpreted in this timezone.
+      # Set it to your local zone, e.g. Asia/Tokyo, America/New_York.
+      - TZ=UTC
+    volumes:
+      # Read-only: StackWatch only lists containers, it never controls them.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config.yml:/etc/stackwatch/config.yml:ro

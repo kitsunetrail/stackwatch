@@ -35,14 +35,12 @@ You don't need one per container or per compose project: **one instance per host
 
 ### Running with docker compose
 
-```yaml
-services:
-  stackwatch:
-    image: ghcr.io/kitsunetrail/stackwatch:latest
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./config.yml:/etc/stackwatch/config.yml:ro
+A ready-to-use [docker-compose.yml](docker-compose.yml) is included:
+
+```sh
+cp config.example.yml config.yml   # then add your Slack webhook to config.yml
+docker compose up -d
+docker compose logs -f
 ```
 
 ## Configuration
