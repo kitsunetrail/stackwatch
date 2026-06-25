@@ -44,9 +44,9 @@ func TestFormatSlackText_Sections(t *testing.T) {
 		"libc-bin",
 		"2.28-10 → 2.28-10+deb10u2",
 		"setuptools",
-		"ディストリのセキュリティ更新", // OS distro_update label
-		"要注意",        // lang caution label
-		"サポート終了",     // EOSL
+		"Distro security update", // OS distro_update label
+		"Needs care",             // lang caution label
+		"end-of-life",            // EOSL
 		"e2fsprogs",  // affected
 		"gcc-8-base", // wont_fix
 		"broken:1",   // scan error
@@ -61,7 +61,7 @@ func TestFormatSlackText_Sections(t *testing.T) {
 
 func TestFormatSlackText_Ordering(t *testing.T) {
 	out := FormatSlackText(sampleReport())
-	eosl := strings.Index(out, "サポート終了")
+	eosl := strings.Index(out, "end-of-life")
 	actionable := strings.Index(out, "libc-bin")
 	affected := strings.Index(out, "e2fsprogs")
 	wontfix := strings.Index(out, "gcc-8-base")
@@ -74,8 +74,8 @@ func TestFormatSlackText_Ordering(t *testing.T) {
 func TestFormatSlackText_Clean(t *testing.T) {
 	clean := analyze.Build([]scanner.ImageScan{{Image: "ok:1"}}, genTime)
 	out := FormatSlackText(clean)
-	if !strings.Contains(out, "異常なし") {
-		t.Errorf("clean report should say 異常なし, got:\n%s", out)
+	if !strings.Contains(out, "All clear") {
+		t.Errorf("clean report should say All clear, got:\n%s", out)
 	}
 }
 

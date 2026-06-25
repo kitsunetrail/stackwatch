@@ -1,25 +1,25 @@
-# StackWatch 設定（1ファイル完結）。config.yml にコピーして使う。
-# 最低限 notify 先を1つ設定すれば動く。他は省略するとデフォルトが適用される。
+# StackWatch configuration (single self-contained file). Copy to config.yml to use.
+# Setting at least one notify target is enough to run; omit the rest to use defaults.
 
 schedule:
-  # ローカルタイムで1日1回実行する時刻 (HH:MM)。
-  # 空にすると「起動から24時間ごと」の間隔モードになる。
+  # Time of day to run once daily, in local time (HH:MM).
+  # Leave empty to switch to interval mode ("every 24h since startup").
   daily_at: "09:00"
-  # 起動直後に1回スキャンする。
+  # Run one scan immediately on startup.
   run_on_start: true
 
 scan:
-  # 通知対象の深刻度。既定は HIGH と CRITICAL のみ。
+  # Severities to report on. Defaults to HIGH and CRITICAL only.
   severity: [HIGH, CRITICAL]
 
 notify:
-  # Slack Incoming Webhook（整形済みメッセージを送信）。
+  # Slack Incoming Webhook (sends a preformatted message).
   slack_webhook_url: ""
-  # 汎用 Webhook（構造化 JSON を POST）。受け手側で自由に加工できる。
+  # Generic webhook (POSTs structured JSON). The receiver can process it freely.
   generic_webhook_url: ""
-  # 異常が無くても1通送るか。既定 false（異常時のみ通知）。
+  # Whether to send a message even when nothing is wrong. Defaults to false (notify only on findings).
   notify_on_clean: false
 
 docker:
-  # 読み取り専用でマウントされる docker.sock のパス。
+  # Path to docker.sock, mounted read-only.
   socket: "/var/run/docker.sock"

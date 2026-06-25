@@ -17,27 +17,27 @@ const timeLayout = "2006-01-02 15:04"
 // with no issues yields a short "all clear" message.
 func FormatSlackText(r analyze.Report) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "🛡️ *StackWatch* — %s のスキャン結果\n", r.GeneratedAt.Format(timeLayout))
-	fmt.Fprintf(&b, "稼働イメージ %d / 該当 %d\n", r.ImagesTotal, r.AffectedImageCount())
+	fmt.Fprintf(&b, "🛡️ *StackWatch* — scan results for %s\n", r.GeneratedAt.Format(timeLayout))
+	fmt.Fprintf(&b, "Running images: %d / affected: %d\n", r.ImagesTotal, r.AffectedImageCount())
 
 	if !r.HasIssues() {
-		b.WriteString("\n✅ 異常なし（HIGH/CRITICAL の脆弱性は見つかりませんでした）\n")
+		b.WriteString("\n✅ All clear (no HIGH/CRITICAL vulnerabilities found)\n")
 		return b.String()
 	}
 
 	if len(r.EOSLImages) > 0 {
-		b.WriteString("\n*⛔ ベースOSがサポート終了（最優先）*\n")
+		b.WriteString("\n*⛔ Base OS end-of-life (top priority)*\n")
 		for _, img := range r.EOSLImages {
-			fmt.Fprintf(&b, "• %s — ベースOSが EOL（今後セキュリティ更新が来ない）\n", img)
+			fmt.Fprintf(&b, "• %s — base OS is EOL (no more security updates coming)\n", img)
 		}
 	}
 
-	writeSection(&b, "✅ 今すぐ対処可能（fixed）", r.Actionable, true)
-	writeSection(&b, "ℹ️ 修正版まだ（affected / 上流待ち）", r.Watch, false)
-	writeSection(&b, "🔕 上流が修正しない方針（will_not_fix）", r.WontFix, false)
+	writeSection(&b, "✅ Actionable now (fixed)", r.Actionable, true)
+	writeSection(&b, "ℹ️ No fix yet (affected / waiting on upstream)", r.Watch, false)
+	writeSection(&b, "🔕 Upstream won't fix (will_not_fix)", r.WontFix, false)
 
 	if len(r.ScanErrors) > 0 {
-		b.WriteString("\n*⚠️ スキャン失敗*\n")
+		b.WriteString("\n*⚠️ Scan failures*\n")
 		for _, e := range r.ScanErrors {
 			fmt.Fprintf(&b, "• %s — %s\n", e.Image, e.Err)
 		}
@@ -58,7 +58,7 @@ func writeSection(b *strings.Builder, title string, imgs []analyze.ImageFindings
 			if fixed {
 				fmt.Fprintf(b, "%s %s → %s", g.Package, g.InstalledVer, g.FixedVer)
 			} else {
-				fmt.Fprintf(b, "%s %s（修正版なし）", g.Package, g.InstalledVer)
+				fmt.Fprintf(b, "%s %s (no fix available)", g.Package, g.InstalledVer)
 			}
 			fmt.Fprintf(b, " (CRITICAL %d / HIGH %d)", g.Critical, g.High)
 			if label := riskLabel(g.Risk); label != "" {
@@ -82,19 +82,19 @@ func imageEmoji(img analyze.ImageFindings) string {
 func riskLabel(r analyze.Risk) string {
 	switch r {
 	case analyze.RiskDistroUpdate:
-		return "🟢 ディストリのセキュリティ更新"
+		return "🟢 Distro security update"
 	case analyze.RiskSafe:
-		return "🟢 比較的安全"
+		return "🟢 Relatively safe"
 	case analyze.RiskCaution:
-		return "🟠 要注意（majorまたぎ）"
+		return "🟠 Needs care (major version bump)"
 	case analyze.RiskUnknown:
-		return "⚪ 更新リスク判定不能"
+		return "⚪ Upgrade risk unknown"
 	default:
 		return ""
 	}
 }
 
-// --- generic webhook payload (docs/NOTIFICATION_SPEC.md §5) ---
+// --- generic webhook payload ---
 
 type webhookPayload struct {
 	GeneratedAt string         `json:"generated_at"`
