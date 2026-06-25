@@ -13,17 +13,27 @@ import (
 
 const timeLayout = "2006-01-02 15:04"
 
-// FormatSlackText renders a report as a Slack message body (mrkdwn). A report
-// with no issues yields a short "all clear" message.
+// collapsePreview caps how many package names are listed when the lower-risk
+// fixes are collapsed into a single summary line.
+const collapsePreview = 5
+
+// FormatSlackText renders a report as a Slack message body (mrkdwn). It leads
+// with a one-line priority summary, then shows the findings that need a human
+// decision — EOL base images, CRITICALs, and major-version bumps — in full,
+// while collapsing the bulk of low-risk fixes into a per-image one-liner. The
+// full, unabridged data is always available via the generic webhook payload.
+// A report with no issues yields a short "all clear" message.
 func FormatSlackText(r analyze.Report) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "🛡️ *StackWatch* — scan results for %s\n", r.GeneratedAt.Format(timeLayout))
-	fmt.Fprintf(&b, "Running images: %d / affected: %d\n", r.ImagesTotal, r.AffectedImageCount())
+	fmt.Fprintf(&b, "%d images scanned, %d affected\n", r.ImagesTotal, r.AffectedImageCount())
 
 	if !r.HasIssues() {
 		b.WriteString("\n✅ All clear (no HIGH/CRITICAL vulnerabilities found)\n")
 		return b.String()
 	}
+
+	writeHeadline(&b, summarize(r))
 
 	if len(r.EOSLImages) > 0 {
 		b.WriteString("\n*⛔ Base OS end-of-life (top priority)*\n")
@@ -32,7 +42,7 @@ func FormatSlackText(r analyze.Report) string {
 		}
 	}
 
-	writeSection(&b, "✅ Actionable now (fixed)", r.Actionable, true)
+	collapsed := writeActionable(&b, r.Actionable)
 	writeSection(&b, "ℹ️ No fix yet (affected / waiting on upstream)", r.Watch, false)
 	writeSection(&b, "🔕 Upstream won't fix (will_not_fix)", r.WontFix, false)
 
@@ -43,9 +53,99 @@ func FormatSlackText(r analyze.Report) string {
 		}
 	}
 
+	if collapsed > 0 {
+		fmt.Fprintf(&b, "\n_%d lower-risk fix(es) summarized — full list in the generic webhook payload._\n", collapsed)
+	}
+
 	return b.String()
 }
 
+// priority holds the headline counts shown at the top of the message.
+type priority struct {
+	eol, critical, care, safe int
+}
+
+// summarize tallies the headline: EOL base images, total CRITICAL CVEs across
+// all sections, fixable packages that need care (major bump), and fixable
+// packages low-risk enough to be collapsed.
+func summarize(r analyze.Report) priority {
+	p := priority{eol: len(r.EOSLImages)}
+	for _, section := range [][]analyze.ImageFindings{r.Actionable, r.Watch, r.WontFix} {
+		for _, img := range section {
+			p.critical += img.CriticalCount()
+		}
+	}
+	for _, img := range r.Actionable {
+		for _, g := range img.Packages {
+			switch {
+			case needsAttention(g):
+				if g.Risk == analyze.RiskCaution {
+					p.care++
+				}
+			default:
+				p.safe++
+			}
+		}
+	}
+	return p
+}
+
+func writeHeadline(b *strings.Builder, p priority) {
+	var seg []string
+	if p.eol > 0 {
+		seg = append(seg, fmt.Sprintf("⛔ %d EOL base", p.eol))
+	}
+	if p.critical > 0 {
+		seg = append(seg, fmt.Sprintf("🔴 %d CRITICAL", p.critical))
+	}
+	if p.care > 0 {
+		seg = append(seg, fmt.Sprintf("🟠 %d need care", p.care))
+	}
+	if p.safe > 0 {
+		seg = append(seg, fmt.Sprintf("🟢 %d safe", p.safe))
+	}
+	if len(seg) > 0 {
+		fmt.Fprintf(b, "*Priority:* %s\n", strings.Join(seg, " · "))
+	}
+}
+
+// needsAttention reports whether a fixable package warrants a human decision and
+// should be shown in full: it carries a CRITICAL, or its fix is a major-version
+// bump (possible breaking change).
+func needsAttention(g analyze.PackageGroup) bool {
+	return g.Critical > 0 || g.Risk == analyze.RiskCaution
+}
+
+// writeActionable renders the fixable section, showing packages that need
+// attention in full and collapsing the rest into one summary line per image.
+// Returns the total number of packages collapsed.
+func writeActionable(b *strings.Builder, imgs []analyze.ImageFindings) int {
+	if len(imgs) == 0 {
+		return 0
+	}
+	b.WriteString("\n*✅ Actionable now (fixed)*\n")
+	collapsed := 0
+	for _, img := range imgs {
+		fmt.Fprintf(b, "%s %s  CRITICAL %d / HIGH %d\n", imageEmoji(img), img.Image, img.CriticalCount(), img.TotalCount()-img.CriticalCount())
+		var rest []analyze.PackageGroup
+		for _, g := range img.Packages {
+			if needsAttention(g) {
+				writePackage(b, g, true)
+			} else {
+				rest = append(rest, g)
+			}
+		}
+		if len(rest) > 0 {
+			collapsed += len(rest)
+			writeCollapsed(b, rest)
+		}
+	}
+	return collapsed
+}
+
+// writeSection renders an image section with every package shown in full. Used
+// for the watch / won't-fix sections, which are not actionable now and are
+// typically short.
 func writeSection(b *strings.Builder, title string, imgs []analyze.ImageFindings, fixed bool) {
 	if len(imgs) == 0 {
 		return
@@ -54,22 +154,51 @@ func writeSection(b *strings.Builder, title string, imgs []analyze.ImageFindings
 	for _, img := range imgs {
 		fmt.Fprintf(b, "%s %s  CRITICAL %d / HIGH %d\n", imageEmoji(img), img.Image, img.CriticalCount(), img.TotalCount()-img.CriticalCount())
 		for _, g := range img.Packages {
-			b.WriteString("   • ")
-			if fixed {
-				fmt.Fprintf(b, "%s %s → %s", g.Package, g.InstalledVer, g.FixedVer)
-			} else {
-				fmt.Fprintf(b, "%s %s (no fix available)", g.Package, g.InstalledVer)
-			}
-			fmt.Fprintf(b, " (CRITICAL %d / HIGH %d)", g.Critical, g.High)
-			if label := riskLabel(g.Risk); label != "" {
-				fmt.Fprintf(b, "  %s", label)
-			}
-			if g.Class == "lang" {
-				b.WriteString(" [lang]")
-			}
-			b.WriteString("\n")
+			writePackage(b, g, fixed)
 		}
 	}
+}
+
+func writePackage(b *strings.Builder, g analyze.PackageGroup, fixed bool) {
+	b.WriteString("   • ")
+	if fixed {
+		fmt.Fprintf(b, "%s %s → %s", g.Package, g.InstalledVer, g.FixedVer)
+	} else {
+		fmt.Fprintf(b, "%s %s (no fix available)", g.Package, g.InstalledVer)
+	}
+	fmt.Fprintf(b, " (CRITICAL %d / HIGH %d)", g.Critical, g.High)
+	if label := riskLabel(g.Risk); label != "" {
+		fmt.Fprintf(b, "  %s", label)
+	}
+	if g.Class == "lang" {
+		b.WriteString(" [lang]")
+	}
+	b.WriteString("\n")
+}
+
+// writeCollapsed renders one summary line for the lower-risk fixes hidden from
+// the detailed view, listing up to collapsePreview package names.
+func writeCollapsed(b *strings.Builder, rest []analyze.PackageGroup) {
+	var crit, high int
+	names := make([]string, 0, len(rest))
+	for _, g := range rest {
+		crit += g.Critical
+		high += g.High
+		names = append(names, g.Package)
+	}
+	sev := fmt.Sprintf("HIGH %d", high)
+	if crit > 0 {
+		sev = fmt.Sprintf("CRITICAL %d / HIGH %d", crit, high)
+	}
+	shown, extra := names, 0
+	if len(names) > collapsePreview {
+		shown, extra = names[:collapsePreview], len(names)-collapsePreview
+	}
+	fmt.Fprintf(b, "   • +%d lower-risk fixes (%s): %s", len(rest), sev, strings.Join(shown, ", "))
+	if extra > 0 {
+		fmt.Fprintf(b, " (+%d more)", extra)
+	}
+	b.WriteString("\n")
 }
 
 func imageEmoji(img analyze.ImageFindings) string {

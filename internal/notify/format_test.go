@@ -71,6 +71,39 @@ func TestFormatSlackText_Ordering(t *testing.T) {
 	}
 }
 
+// collapseReport builds an image with one CRITICAL package plus several
+// low-risk (safe minor-bump) fixes, to exercise the collapsing behavior.
+func collapseReport() analyze.Report {
+	finds := []scanner.Finding{
+		{Image: "big:1", Class: scanner.ClassLang, Package: "crit-pkg", InstalledVer: "2.0.0", FixedVer: "2.1.0", Status: scanner.StatusFixed, Severity: scanner.SeverityCritical, VulnID: "C-1"},
+	}
+	for _, n := range []string{"safe-a", "safe-b", "safe-c", "safe-d", "safe-e", "safe-f", "safe-g"} {
+		finds = append(finds, scanner.Finding{Image: "big:1", Class: scanner.ClassLang, Package: n, InstalledVer: "1.0.0", FixedVer: "1.2.0", Status: scanner.StatusFixed, Severity: scanner.SeverityHigh, VulnID: "H-" + n})
+	}
+	return analyze.Build([]scanner.ImageScan{{Image: "big:1", Findings: finds}}, genTime)
+}
+
+func TestFormatSlackText_CollapsesLowRisk(t *testing.T) {
+	out := FormatSlackText(collapseReport())
+
+	if !strings.Contains(out, "*Priority:*") {
+		t.Errorf("expected a priority headline:\n%s", out)
+	}
+	if !strings.Contains(out, "crit-pkg") {
+		t.Errorf("critical package must be shown in full:\n%s", out)
+	}
+	if !strings.Contains(out, "+7 lower-risk fixes") {
+		t.Errorf("expected the 7 safe fixes collapsed into one summary line:\n%s", out)
+	}
+	// Only collapsePreview names are listed; the rest are elided, not enumerated.
+	if strings.Contains(out, "safe-g") {
+		t.Errorf("low-risk package beyond the preview should be collapsed, not listed:\n%s", out)
+	}
+	if !strings.Contains(out, "summarized") {
+		t.Errorf("expected the footer pointing to the webhook for full detail:\n%s", out)
+	}
+}
+
 func TestFormatSlackText_Clean(t *testing.T) {
 	clean := analyze.Build([]scanner.ImageScan{{Image: "ok:1"}}, genTime)
 	out := FormatSlackText(clean)
