@@ -1,10 +1,35 @@
 # StackWatch
 
+[![CI](https://github.com/kitsunetrail/stackwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/kitsunetrail/stackwatch/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
 > An agent that scans your running Docker containers every day and sends only the **actionable vulnerabilities** — prioritized — to Slack or a webhook.
 
 Built for self-hosters and homelab folks. It does the tedious work of reading Trivy's raw output for you, and surfaces what you can fix *right now*.
 
 > ⚠️ **Status: MVP / WIP.** Currently focused on Docker-only, CVE notifications.
+
+## What a notification looks like
+
+```
+🛡️ StackWatch — scan results for 2026-06-28 09:00
+12 images scanned, 3 affected
+Priority: 🟠 1 need care · 🟢 9 safe
+
+✅ Actionable now (fixed)
+🟠 nginx:1.25.3   CRITICAL 1 / HIGH 4
+   • openssl 3.0.7 → 3.0.11 (CRITICAL 1)
+   • +3 lower-risk fixes (HIGH 4): libssl3, zlib1g, libxml2
+🟠 myapp:latest   CRITICAL 0 / HIGH 2
+   • webpack 4.46.0 → 5.89.0 (CRITICAL 0 / HIGH 1)  🟠 Needs care (major version bump) [lang]
+   • +1 lower-risk fixes (HIGH 1): postcss
+
+9 lower-risk fix(es) summarized — full list in the generic webhook payload.
+```
+
+Instead of dumping every CVE, it tells you the one upgrade that needs a human decision
+(a major-version bump that might break things), collapses the safe patch/minor fixes into
+a single line, and stays silent on the days there's nothing to act on.
 
 ## What it does
 
